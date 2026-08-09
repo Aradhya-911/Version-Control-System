@@ -33,9 +33,18 @@ void commit(){
     ifstream headFile(".mygit/HEAD");
     headFile>>commitcount;
     headFile.close();
-    commitcount++;
+    
 
     Commit newCommit;
+    
+    if(commitcount==0){
+        newCommit.parentId=-1;
+    }else{
+        newCommit.parentId=commitcount;
+    }
+
+    commitcount++;
+
     newCommit.id = commitcount;
 
     string commitName = "commit" + to_string(commitcount) ;
@@ -88,6 +97,7 @@ void commit(){
 
     LogFile
         << "commit " << newCommit.id << "|"
+        << newCommit.parentId << "|"
         << newCommit.message << "|"
         << newCommit.timestamp
         <<'\n';

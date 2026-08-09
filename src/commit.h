@@ -7,4 +7,5 @@ class Commit {
     int id;
     string message;
     string timestamp;
+    int parentId;
 };
