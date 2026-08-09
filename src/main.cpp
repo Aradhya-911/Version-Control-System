@@ -57,12 +57,13 @@ void commit(){
 
     while(it!=end){
         //copying files and directories to the commit directory
-        if(it->path().filename()==".mygit"){
+        if(it->path().filename()==".mygit"
+        || it->path().filename()==".git"){
             it.disable_recursion_pending();
             ++it;
             continue;
         }
-        if(it->path().filename() == "main.exe"){
+        if(it->path().filename() == "mygit.exe"){
             ++it;
             continue;
         }
@@ -179,40 +180,24 @@ void revert(){
     cout<<"Successfully reverted to commit: "<<commitName<<'\n';
 }
 
-int main() {
-    while(true){
-        int choice;
-
-        cout<<"1. Init\n";
-        cout<<"2. Commit\n";
-        cout<<"3. Log\n";
-        cout<<"4. Revert\n";
-        cout<<"5. Exit\n";
-
-        cin>>choice;
-
-        switch(choice){
-            case 1:
-                // Init functionality
-                init();
-                break;
-            case 2:
-                // Commit functionality
-                commit();
-                break;
-            case 3:
-                // Log functionality
-                Log();
-                break;
-            case 4:
-                // Revert functionality
-                revert();
-                break;
-            case 5:
-                cout<<"Exiting...\n";
-                return 0;
-            default:
-                cout<<"Invalid choice\n";
-        }
+int main(int argc,char* argv[]) {
+    if(argc<2){
+        cout<<"Please provide a command\n";
+        return 0;
     }
+    string command=argv[1];
+
+    if(command=="init"){
+        init();
+    }else if(command=="commit"){
+        commit();
+    }else if(command=="log"){
+        Log();
+    }else if(command=="revert"){
+        revert();
+    }else{
+        cout<<"Invalid command\n";
+    }   
+    return 0;
+    
 }
