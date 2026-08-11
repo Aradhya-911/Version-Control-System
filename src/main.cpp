@@ -9,8 +9,6 @@
 #include<sstream>
 using namespace std;
 namespace fs = std::filesystem;
-
-//commit1
 void init(){
     fs::path repoPath = ".mygit/commits";
                 if(fs::exists(".mygit")){
@@ -22,6 +20,26 @@ void init(){
                     headFile.close();
                     cout<<"Repository initialized\n";
                 }
+}
+
+void add(string filename){
+    if(!fs::exists(".mygit")){
+        cout<<"Repository not initialized. Please run init first.\n";
+        return;
+    }
+    fs::path source = filename;
+    fs::path destination =fs::path(".mygit/staging")/source;
+    if(!fs::exists(source)){
+        cout<<"File does not exist\n";
+        return;
+    }
+    fs::create_directories(destination.parent_path());
+    fs::copy_file(
+        source,
+        destination,
+        fs::copy_options::overwrite_existing
+    );
+    cout << "Added " << filename << " to staging area.\n";
 }
 
 void commit(){
@@ -51,31 +69,67 @@ void commit(){
 
     fs::path commitPath=fs::path (".mygit/commits")/commitName;
     fs::create_directory(commitPath);
+    
+        // Create new commit from previous commit
+    if(newCommit.parentId != -1){
 
-    fs::recursive_directory_iterator it(".");
-    fs::recursive_directory_iterator end;
+    fs::path previousCommit =
+        fs::path(".mygit/commits") /
+        ("commit" + to_string(newCommit.parentId));
+        cout << "Copying previous commit: " << previousCommit << '\n';
 
-    while(it!=end){
-        //copying files and directories to the commit directory
-        if(it->path().filename()==".mygit"
-        || it->path().filename()==".git"){
-            it.disable_recursion_pending();
-            ++it;
-            continue;
-        }
-        if(it->path().filename() == "mygit.exe"){
-            ++it;
-            continue;
-        }
-        fs::path relativePath=fs::relative(it->path(), ".");
-        fs::path destinationPath=commitPath/relativePath;
-        if(fs::is_directory(it->path())){
+    for(const auto& entry :
+        fs::recursive_directory_iterator(previousCommit)){
+
+        fs::path relativePath =
+            fs::relative(entry.path(), previousCommit);
+
+        fs::path destinationPath =
+            commitPath / relativePath;
+
+        if(entry.is_directory()){
             fs::create_directories(destinationPath);
-        }else if(fs::is_regular_file(it->path())){
-            fs::copy_file(it->path(), destinationPath);
         }
-        ++it;
+        else if(entry.is_regular_file()){
+            fs::create_directories(destinationPath.parent_path());
+
+            fs::copy_file(
+                entry.path(),
+                destinationPath,
+                fs::copy_options::overwrite_existing
+            );
+        }
     }
+}
+
+    // Apply staged changes
+if(fs::exists(".mygit/staging")){
+
+    for(const auto& entry :
+        fs::recursive_directory_iterator(".mygit/staging")){
+
+        fs::path relativePath =
+            fs::relative(entry.path(), ".mygit/staging");
+
+        fs::path destinationPath =
+            commitPath / relativePath;
+
+        if(entry.is_directory()){
+            fs::create_directories(destinationPath);
+        }
+        else if(entry.is_regular_file()){
+            fs::create_directories(destinationPath.parent_path());
+
+            fs::copy_file(
+                entry.path(),
+                destinationPath,
+                fs::copy_options::overwrite_existing
+            );
+        }
+    }
+}
+    // Clear the staging area after commit
+    fs::remove_all(".mygit/staging");
     //Creating a log file for the commit
     cout<<"Enter commit message: ";
     cin.ignore();
@@ -189,7 +243,14 @@ int main(int argc,char* argv[]) {
 
     if(command=="init"){
         init();
-    }else if(command=="commit"){
+    }else if(command=="add"){
+        if(argc<3){
+            cout<<"Please provide a filename to add\n";
+            return 0;
+        }
+        add(argv[2]);
+    }
+    else if(command=="commit"){
         commit();
     }else if(command=="log"){
         Log();
