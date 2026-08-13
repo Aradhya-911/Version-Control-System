@@ -22,25 +22,7 @@ void init(){
                 }
 }
 
-void add(string filename){
-    if(!fs::exists(".mygit")){
-        cout<<"Repository not initialized. Please run init first.\n";
-        return;
-    }
-    fs::path source = filename;
-    fs::path destination =fs::path(".mygit/staging")/source;
-    if(!fs::exists(source)){
-        cout<<"File does not exist\n";
-        return;
-    }
-    fs::create_directories(destination.parent_path());
-    fs::copy_file(
-        source,
-        destination,
-        fs::copy_options::overwrite_existing
-    );
-    cout << "Added " << filename << " to staging area.\n";
-}
+
 
 void commit(){
     if(!fs::exists(".mygit")){
