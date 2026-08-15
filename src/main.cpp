@@ -9,6 +9,8 @@
 #include<sstream>
 using namespace std;
 namespace fs = std::filesystem;
+
+//commit1
 void init(){
     fs::path repoPath = ".mygit/commits";
                 if(fs::exists(".mygit")){
@@ -22,7 +24,89 @@ void init(){
                 }
 }
 
+void add(string path){
+    if(!fs::exists(".mygit")){
+        cout << "Repository not initialized. Please run init first.\n";
+        return;
+    }
 
+    fs::path source = path;
+
+    if(!fs::exists(source)){
+        cout << "Path does not exist: " << path << '\n';
+        return;
+    }
+
+    fs::path stagingPath = ".mygit/staging";
+
+    if(fs::is_regular_file(source)){
+
+        if(source.filename() == "mygit.exe"){
+            cout << "Cannot stage mygit.exe\n";
+            return;
+        }
+
+        fs::path destination = stagingPath / source;
+
+        fs::create_directories(destination.parent_path());
+
+        fs::copy_file(
+            source,
+            destination,
+            fs::copy_options::overwrite_existing
+        );
+
+        cout << "Added " << path << " to staging area.\n";
+        return;
+    }
+
+    fs::recursive_directory_iterator it(source);
+    fs::recursive_directory_iterator end;
+
+    while(it != end){
+
+        fs::path current = it->path();
+
+        if(current.filename() == ".mygit" ||
+           current.filename() == ".git"){
+
+            if(it->is_directory()){
+                it.disable_recursion_pending();
+            }
+
+            ++it;
+            continue;
+        }
+
+        if(current.filename() == "mygit.exe"){
+            ++it;
+            continue;
+        }
+
+        fs::path relativePath =
+            fs::relative(current, ".");
+
+        fs::path destination =
+            stagingPath / relativePath;
+
+        if(it->is_directory()){
+            fs::create_directories(destination);
+        }
+        else if(it->is_regular_file()){
+            fs::create_directories(destination.parent_path());
+
+            fs::copy_file(
+                current,
+                destination,
+                fs::copy_options::overwrite_existing
+            );
+        }
+
+        ++it;
+    }
+
+    cout << "Added " << path << " to staging area.\n";
+}
 
 void commit(){
     if(!fs::exists(".mygit")){
@@ -51,67 +135,31 @@ void commit(){
 
     fs::path commitPath=fs::path (".mygit/commits")/commitName;
     fs::create_directory(commitPath);
-    
-        // Create new commit from previous commit
-    if(newCommit.parentId != -1){
 
-    fs::path previousCommit =
-        fs::path(".mygit/commits") /
-        ("commit" + to_string(newCommit.parentId));
-        cout << "Copying previous commit: " << previousCommit << '\n';
+    fs::recursive_directory_iterator it(".");
+    fs::recursive_directory_iterator end;
 
-    for(const auto& entry :
-        fs::recursive_directory_iterator(previousCommit)){
-
-        fs::path relativePath =
-            fs::relative(entry.path(), previousCommit);
-
-        fs::path destinationPath =
-            commitPath / relativePath;
-
-        if(entry.is_directory()){
+    while(it!=end){
+        //copying files and directories to the commit directory
+        if(it->path().filename()==".mygit"
+        || it->path().filename()==".git"){
+            it.disable_recursion_pending();
+            ++it;
+            continue;
+        }
+        if(it->path().filename() == "mygit.exe"){
+            ++it;
+            continue;
+        }
+        fs::path relativePath=fs::relative(it->path(), ".");
+        fs::path destinationPath=commitPath/relativePath;
+        if(fs::is_directory(it->path())){
             fs::create_directories(destinationPath);
+        }else if(fs::is_regular_file(it->path())){
+            fs::copy_file(it->path(), destinationPath);
         }
-        else if(entry.is_regular_file()){
-            fs::create_directories(destinationPath.parent_path());
-
-            fs::copy_file(
-                entry.path(),
-                destinationPath,
-                fs::copy_options::overwrite_existing
-            );
-        }
+        ++it;
     }
-}
-
-    // Apply staged changes
-if(fs::exists(".mygit/staging")){
-
-    for(const auto& entry :
-        fs::recursive_directory_iterator(".mygit/staging")){
-
-        fs::path relativePath =
-            fs::relative(entry.path(), ".mygit/staging");
-
-        fs::path destinationPath =
-            commitPath / relativePath;
-
-        if(entry.is_directory()){
-            fs::create_directories(destinationPath);
-        }
-        else if(entry.is_regular_file()){
-            fs::create_directories(destinationPath.parent_path());
-
-            fs::copy_file(
-                entry.path(),
-                destinationPath,
-                fs::copy_options::overwrite_existing
-            );
-        }
-    }
-}
-    // Clear the staging area after commit
-    fs::remove_all(".mygit/staging");
     //Creating a log file for the commit
     cout<<"Enter commit message: ";
     cin.ignore();
@@ -225,14 +273,7 @@ int main(int argc,char* argv[]) {
 
     if(command=="init"){
         init();
-    }else if(command=="add"){
-        if(argc<3){
-            cout<<"Please provide a filename to add\n";
-            return 0;
-        }
-        add(argv[2]);
-    }
-    else if(command=="commit"){
+    }else if(command=="commit"){
         commit();
     }else if(command=="log"){
         Log();
