@@ -107,108 +107,158 @@ void add(string path){
 
     cout << "Added " << path << " to staging area.\n";
 }
+
+string generateHash(const string& data) {
+
+    uint64_t hash = 14695981039346656037ULL;
+
+    for(char c : data){
+        hash ^= static_cast<unsigned char>(c);
+        hash *= 1099511628211ULL;
+    }
+
+    stringstream ss;
+    ss << hex << hash;
+
+    string result = ss.str();
+
+    return result.substr(0, 8);
+}
+
 void commit(){
+
     if(!fs::exists(".mygit")){
         cout<<"Repository not initialized. Please run init first.\n";
         return;
     }
-    int commitcount;
+
+    // 1. Read current HEAD
+    string parentHash;
+
     ifstream headFile(".mygit/HEAD");
-    headFile>>commitcount;
+    headFile >> parentHash;
     headFile.close();
-    
 
+    // 2. Create commit object
     Commit newCommit;
-    
-    if(commitcount==0){
-        newCommit.parentId=-1;
-    }else{
-        newCommit.parentId=commitcount;
+
+    if(parentHash == "0"){
+        newCommit.parentId = "-1";
+    }
+    else{
+        newCommit.parentId = parentHash;
     }
 
-    commitcount++;
-
-    newCommit.id = commitcount;
-
-    string commitName = "commit" + to_string(commitcount) ;
-
-    fs::path commitPath=fs::path (".mygit/commits")/commitName;
-    fs::create_directory(commitPath);
-
-   if(newCommit.parentId != -1){
-
-    fs::path previousCommit =
-        fs::path(".mygit/commits") /
-        ("commit" + to_string(newCommit.parentId));
-
-    for(const auto& entry :
-        fs::recursive_directory_iterator(previousCommit)){
-
-        fs::path relativePath =
-            fs::relative(entry.path(), previousCommit);
-
-        fs::path destinationPath =
-            commitPath / relativePath;
-
-        if(entry.is_directory()){
-            fs::create_directories(destinationPath);
-        }
-        else if(entry.is_regular_file()){
-            fs::create_directories(destinationPath.parent_path());
-
-            fs::copy_file(
-                entry.path(),
-                destinationPath,
-                fs::copy_options::overwrite_existing
-            );
-        }
-    }
-}
-//copying the staging area to the new commit folder
-
-    if(fs::exists(".mygit/staging")){
-
-    for(const auto& entry :
-        fs::recursive_directory_iterator(".mygit/staging")){
-
-        fs::path relativePath =
-            fs::relative(entry.path(), ".mygit/staging");
-
-        fs::path destinationPath =
-            commitPath / relativePath;
-
-        if(entry.is_directory()){
-            fs::create_directories(destinationPath);
-        }
-        else if(entry.is_regular_file()){
-            fs::create_directories(destinationPath.parent_path());
-
-            fs::copy_file(
-                entry.path(),
-                destinationPath,
-                fs::copy_options::overwrite_existing
-            );
-        }
-    }
-}
-    //Creating a log file for the commit
+    // 3. Get commit message
     cout<<"Enter commit message: ";
     cin.ignore();
     getline(cin, newCommit.message);
 
-    //getting current date and time
-    auto now = std::chrono::system_clock::now();
+    // 4. Get timestamp
+    auto now = chrono::system_clock::now();
 
-    time_t currentTime=chrono::system_clock::to_time_t(now);
-    tm* localTime=localtime(&currentTime);
+    time_t currentTime =
+        chrono::system_clock::to_time_t(now);
 
-    // Convert formatted time into a string
+    tm* localTime = localtime(&currentTime);
+
     stringstream ss;
     ss << put_time(localTime, "%d-%m-%Y %H:%M:%S");
 
     newCommit.timestamp = ss.str();
 
-    //opening log in append mode, file will be created if it doesn't exist
+    // 5. Generate commit hash
+    string hashInput =
+        newCommit.parentId + "|" +
+        newCommit.message + "|" +
+        newCommit.timestamp;
+
+    newCommit.id = generateHash(hashInput);
+
+    // 6. NOW create the commit directory
+    string commitName = newCommit.id;
+
+    fs::path commitPath =
+        fs::path(".mygit/commits") / commitName;
+
+    fs::create_directory(commitPath);
+
+
+    // 7. Copy previous commit snapshot
+    if(newCommit.parentId != "-1"){
+
+        fs::path previousCommit =
+            fs::path(".mygit/commits") /
+            newCommit.parentId;
+
+        for(const auto& entry :
+            fs::recursive_directory_iterator(previousCommit)){
+
+            fs::path relativePath =
+                fs::relative(entry.path(), previousCommit);
+
+            fs::path destinationPath =
+                commitPath / relativePath;
+
+            if(entry.is_directory()){
+
+                fs::create_directories(destinationPath);
+
+            }
+            else if(entry.is_regular_file()){
+
+                fs::create_directories(
+                    destinationPath.parent_path()
+                );
+
+                fs::copy_file(
+                    entry.path(),
+                    destinationPath,
+                    fs::copy_options::overwrite_existing
+                );
+            }
+        }
+    }
+
+
+    // 8. Apply staged changes
+    if(fs::exists(".mygit/staging")){
+
+        for(const auto& entry :
+            fs::recursive_directory_iterator(".mygit/staging")){
+
+            fs::path relativePath =
+                fs::relative(entry.path(), ".mygit/staging");
+
+            fs::path destinationPath =
+                commitPath / relativePath;
+
+            if(entry.is_directory()){
+
+                fs::create_directories(destinationPath);
+
+            }
+            else if(entry.is_regular_file()){
+
+                fs::create_directories(
+                    destinationPath.parent_path()
+                );
+
+                fs::copy_file(
+                    entry.path(),
+                    destinationPath,
+                    fs::copy_options::overwrite_existing
+                );
+            }
+        }
+    }
+
+
+    // 9. Clear staging area
+    fs::remove_all(".mygit/staging");
+
+
+    // 10. Write commit to log
     ofstream LogFile(".mygit/log.txt", ios::app);
 
     LogFile
@@ -216,16 +266,20 @@ void commit(){
         << newCommit.parentId << "|"
         << newCommit.message << "|"
         << newCommit.timestamp
-        <<'\n';
+        << '\n';
 
-        LogFile.close();
+    LogFile.close();
 
-        cout<<"Commit created succesfully: "
-            <<commitName<< '\n';
 
-    //updating the HEAD file with the new commit count
+    cout<<"Commit created successfully: "
+        <<commitName<<'\n';
+
+
+    // 11. Update HEAD LAST
     ofstream headFileout(".mygit/HEAD");
-    headFileout<<commitcount;
+
+    headFileout << newCommit.id;
+
     headFileout.close();
 }
 

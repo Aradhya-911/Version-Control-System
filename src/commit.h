@@ -4,8 +4,8 @@ using namespace std;
 
 class Commit {
     public:
-    int id;
+    string id;
     string message;
     string timestamp;
-    int parentId;
+    string parentId;
 };
