@@ -28,7 +28,11 @@ int main(int argc, char* argv[]) {
         Log();
     }
     else if(command == "revert"){
-        revert();
+        if(argc<3){
+            cout<<"Please provide a commithash to revert to\n";
+            return 0;
+        }
+        revert(argv[2]);
     }
     else if(command == "add"){
         if(argc < 3){
