@@ -28,16 +28,18 @@ void commit(){
     Commit newCommit;
 
     if(parentHash == "0"){
-        newCommit.parentId = "-1";
+        newCommit.setParentId("-1");
     }
     else{
-        newCommit.parentId = parentHash;
+        newCommit.setParentId(parentHash);
     }
 
     // 3. Get commit message
+    string message;
     cout<<"Enter commit message: ";
     cin.ignore();
-    getline(cin, newCommit.message);
+    getline(cin, message);
+    newCommit.setMessage(message);
 
     // 4. Get timestamp
     auto now = chrono::system_clock::now();
@@ -50,18 +52,18 @@ void commit(){
     stringstream ss;
     ss << put_time(localTime, "%d-%m-%Y %H:%M:%S");
 
-    newCommit.timestamp = ss.str();
+    newCommit.setTimestamp(ss.str());
 
     // 5. Generate commit hash
     string hashInput =
-        newCommit.parentId + "|" +
-        newCommit.message + "|" +
-        newCommit.timestamp;
+        newCommit.getParentId() + "|" +
+        newCommit.getMessage() + "|" +
+        newCommit.getTimestamp();
 
-    newCommit.id = generateHash(hashInput);
+    newCommit.setId(generateHash(hashInput));
 
     // 6. NOW create the commit directory
-    string commitName = newCommit.id;
+    string commitName = newCommit.getId();
 
     fs::path commitPath =
         fs::path(".mygit/commits") / commitName;
@@ -70,11 +72,11 @@ void commit(){
 
 
     // 7. Copy previous commit snapshot
-    if(newCommit.parentId != "-1"){
+    if(newCommit.getParentId() != "-1"){
 
         fs::path previousCommit =
             fs::path(".mygit/commits") /
-            newCommit.parentId;
+            newCommit.getParentId();
 
         for(const auto& entry :
             fs::recursive_directory_iterator(previousCommit)){
@@ -147,10 +149,10 @@ void commit(){
     ofstream LogFile(".mygit/log.txt", ios::app);
 
     LogFile
-        << "commit " << newCommit.id << "|"
-        << newCommit.parentId << "|"
-        << newCommit.message << "|"
-        << newCommit.timestamp
+        << "commit " << newCommit.getId() << "|"
+        << newCommit.getParentId() << "|"
+        << newCommit.getMessage() << "|"
+        << newCommit.getTimestamp()
         << '\n';
 
     LogFile.close();
@@ -163,7 +165,7 @@ void commit(){
     // 11. Update HEAD LAST
     ofstream headFileout(".mygit/HEAD");
 
-    headFileout << newCommit.id;
+    headFileout << newCommit.getId();
 
     headFileout.close();
 }
