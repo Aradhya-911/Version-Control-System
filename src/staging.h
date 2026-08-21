@@ -7,6 +7,7 @@ void add(string path){
 
     fs::path source = path;
 
+    //Setup staging area paths
     fs::path stagingPath = ".mygit/staging";
     fs::path newPath = stagingPath / "newlystaged";
     fs::path deletionFile = stagingPath / "deletions";
@@ -19,6 +20,8 @@ void add(string path){
     headFile >> parentHash;
     headFile.close();
 
+    //If the parent commit exists, check for files that were deleted in the working directory and add them to the deletions file
+    
     if(parentHash != "0" && !parentHash.empty()){
 
         fs::path previousCommit =
@@ -79,7 +82,7 @@ void add(string path){
             }
         }
     }
-
+    // Now, add the specified file or directory to the staging area
     if(!fs::exists(source)){
 
         cout<<"Path does not exist: "<<path<<'\n';
@@ -112,7 +115,7 @@ void add(string path){
         cout<<"Added "<<path<<" to staging area.\n";
         return;
     }
-
+    // If it's a directory, recursively add its contents to the staging area
     fs::recursive_directory_iterator it(source);
     fs::recursive_directory_iterator end;
 
