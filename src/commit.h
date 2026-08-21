@@ -109,36 +109,59 @@ void commit(){
 
 
     // 8. Apply staged changes
-    if(fs::exists(".mygit/staging")){
+    fs::path stagingPath = ".mygit/staging";
+fs::path newPath = stagingPath / "newlystaged";
+fs::path deletionFile = stagingPath / "deletions";
 
-        for(const auto& entry :
-            fs::recursive_directory_iterator(".mygit/staging")){
+if(fs::exists(deletionFile)){
 
-            fs::path relativePath =
-                fs::relative(entry.path(), ".mygit/staging");
+    ifstream deletions(deletionFile);
 
-            fs::path destinationPath =
-                commitPath / relativePath;
+    string path;
 
-            if(entry.is_directory()){
+    while(getline(deletions, path)){
 
-                fs::create_directories(destinationPath);
+        fs::path fileToDelete =
+            commitPath / fs::path(path);
 
-            }
-            else if(entry.is_regular_file()){
-
-                fs::create_directories(
-                    destinationPath.parent_path()
-                );
-
-                fs::copy_file(
-                    entry.path(),
-                    destinationPath,
-                    fs::copy_options::overwrite_existing
-                );
-            }
+        if(fs::exists(fileToDelete)){
+            fs::remove(fileToDelete);
         }
     }
+
+    deletions.close();
+}
+
+if(fs::exists(newPath)){
+
+    for(const auto& entry :
+        fs::recursive_directory_iterator(newPath)){
+
+        fs::path relativePath =
+            fs::relative(entry.path(), newPath);
+
+        fs::path destinationPath =
+            commitPath / relativePath;
+
+        if(entry.is_directory()){
+
+            fs::create_directories(destinationPath);
+
+        }
+        else if(entry.is_regular_file()){
+
+            fs::create_directories(
+                destinationPath.parent_path()
+            );
+
+            fs::copy_file(
+                entry.path(),
+                destinationPath,
+                fs::copy_options::overwrite_existing
+            );
+        }
+    }
+}
 
 
     // 9. Clear staging area

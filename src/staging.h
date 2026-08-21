@@ -1,43 +1,107 @@
-#pragma once
-
-#include<iostream>
-#include<filesystem>
-#include<fstream>
-#include<chrono>
-#include<ctime>
-#include<iomanip>
-#include<vector>
-#include"commit.h"
-#include<sstream>
-
-using namespace std;
-namespace fs = std::filesystem;
-
 void add(string path){
+
     if(!fs::exists(".mygit")){
-        cout << "Repository not initialized. Please run init first.\n";
+        cout<<"Repository not initialized. Please run init first.\n";
         return;
     }
 
     fs::path source = path;
 
-    if(!fs::exists(source)){
-        cout << "Path does not exist: " << path << '\n';
-        return;
+    fs::path stagingPath = ".mygit/staging";
+    fs::path newPath = stagingPath / "newlystaged";
+    fs::path deletionFile = stagingPath / "deletions";
+
+    fs::create_directories(newPath);
+
+    string parentHash;
+
+    ifstream headFile(".mygit/HEAD");
+    headFile >> parentHash;
+    headFile.close();
+
+    if(parentHash != "0" && !parentHash.empty()){
+
+        fs::path previousCommit =
+            fs::path(".mygit/commits") / parentHash;
+
+        if(fs::exists(previousCommit)){
+
+            for(const auto& entry :
+                fs::recursive_directory_iterator(previousCommit)){
+
+                if(!entry.is_regular_file()){
+                    continue;
+                }
+
+                fs::path relativePath =
+                    fs::relative(entry.path(), previousCommit);
+
+                if(relativePath.filename() == "mygit.exe"){
+                    continue;
+                }
+
+                fs::path currentFile =
+                    fs::path(".") / relativePath;
+
+                if(!fs::exists(currentFile)){
+
+                    fs::create_directories(
+                        deletionFile.parent_path()
+                    );
+
+                    ifstream check(deletionFile);
+                    string deletedPath;
+                    bool alreadyAdded = false;
+
+                    while(getline(check, deletedPath)){
+                        if(deletedPath == relativePath.string()){
+                            alreadyAdded = true;
+                            break;
+                        }
+                    }
+
+                    check.close();
+
+                    if(!alreadyAdded){
+
+                        ofstream deletionLog(
+                            deletionFile,
+                            ios::app
+                        );
+
+                        deletionLog
+                            << relativePath.string()
+                            << '\n';
+
+                        deletionLog.close();
+                    }
+                }
+            }
+        }
     }
 
-    fs::path stagingPath = ".mygit/staging";
+    if(!fs::exists(source)){
+
+        cout<<"Path does not exist: "<<path<<'\n';
+        return;
+    }
 
     if(fs::is_regular_file(source)){
 
         if(source.filename() == "mygit.exe"){
-            cout << "Cannot stage mygit.exe\n";
+            cout<<"Cannot stage mygit.exe\n";
             return;
         }
 
-        fs::path destination = stagingPath / source;
+        fs::path relativePath =
+            fs::relative(source, ".");
 
-        fs::create_directories(destination.parent_path());
+        fs::path destination =
+            newPath / relativePath;
+
+        fs::create_directories(
+            destination.parent_path()
+        );
 
         fs::copy_file(
             source,
@@ -45,7 +109,7 @@ void add(string path){
             fs::copy_options::overwrite_existing
         );
 
-        cout << "Added " << path << " to staging area.\n";
+        cout<<"Added "<<path<<" to staging area.\n";
         return;
     }
 
@@ -72,17 +136,17 @@ void add(string path){
             continue;
         }
 
-        fs::path relativePath =
-            fs::relative(current, ".");
+        if(it->is_regular_file()){
 
-        fs::path destination =
-            stagingPath / relativePath;
+            fs::path relativePath =
+                fs::relative(current, ".");
 
-        if(it->is_directory()){
-            fs::create_directories(destination);
-        }
-        else if(it->is_regular_file()){
-            fs::create_directories(destination.parent_path());
+            fs::path destination =
+                newPath / relativePath;
+
+            fs::create_directories(
+                destination.parent_path()
+            );
 
             fs::copy_file(
                 current,
@@ -94,5 +158,5 @@ void add(string path){
         ++it;
     }
 
-    cout << "Added " << path << " to staging area.\n";
+    cout<<"Added "<<path<<" to staging area.\n";
 }
