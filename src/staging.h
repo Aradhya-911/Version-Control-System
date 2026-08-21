@@ -1,3 +1,14 @@
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <iostream>
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+using namespace std;
+namespace fs = std::filesystem;
+
 void add(string path){
 
     if(!fs::exists(".mygit")){
