@@ -9,6 +9,7 @@ using namespace std;
 #include<iomanip>
 #include<vector>
 #include"hashing.h"
+#include"object.h"
 
 void commit(){
 
@@ -70,48 +71,53 @@ void commit(){
 
     fs::create_directory(commitPath);
 
+    // 7. Build new manifest
 
-    // 7. Copy previous commit snapshot
-    if(newCommit.getParentId() != "-1"){
+fs::path manifestPath =
+    commitPath / "manifest.txt";
 
-        fs::path previousCommit =
-            fs::path(".mygit/commits") /
-            newCommit.getParentId();
+vector<pair<string,string>> files;
 
-        for(const auto& entry :
-            fs::recursive_directory_iterator(previousCommit)){
+if(newCommit.getParentId() != "-1"){
 
-            fs::path relativePath =
-                fs::relative(entry.path(), previousCommit);
+    fs::path previousManifest =
+        fs::path(".mygit/commits") /
+        newCommit.getParentId() /
+        "manifest.txt";
 
-            fs::path destinationPath =
-                commitPath / relativePath;
+    ifstream previous(previousManifest);
 
-            if(entry.is_directory()){
+    string line;
 
-                fs::create_directories(destinationPath);
+    while(getline(previous, line)){
 
-            }
-            else if(entry.is_regular_file()){
+        size_t pos = line.find('|');
 
-                fs::create_directories(
-                    destinationPath.parent_path()
-                );
+        if(pos == string::npos){
+            continue;
+        }
 
-                fs::copy_file(
-                    entry.path(),
-                    destinationPath,
-                    fs::copy_options::overwrite_existing
-                );
-            }
+        string path = line.substr(0, pos);
+        string hash = line.substr(pos + 1);
+
+        if(hash != "DELETED"){
+            files.push_back({path, hash});
         }
     }
 
+    previous.close();
+}
 
-    // 8. Apply staged changes
-    fs::path stagingPath = ".mygit/staging";
-fs::path newPath = stagingPath / "newlystaged";
-fs::path deletionFile = stagingPath / "deletions";
+fs::path stagingPath = ".mygit/staging";
+
+fs::path newPath =
+    stagingPath / "newlystaged";
+
+fs::path deletionFile =
+    stagingPath / "deletions";
+
+
+// Remove deleted files
 
 if(fs::exists(deletionFile)){
 
@@ -121,54 +127,81 @@ if(fs::exists(deletionFile)){
 
     while(getline(deletions, path)){
 
-        fs::path fileToDelete =
-            commitPath / fs::path(path);
+        for(auto it = files.begin();
+            it != files.end(); ){
 
-        if(fs::exists(fileToDelete)){
-            fs::remove(fileToDelete);
+            if(it->first == path){
+                it = files.erase(it);
+            }
+            else{
+                ++it;
+            }
         }
     }
 
     deletions.close();
 }
 
+
+// Add new and modified files
+
 if(fs::exists(newPath)){
 
     for(const auto& entry :
         fs::recursive_directory_iterator(newPath)){
 
+        if(!entry.is_regular_file()){
+            continue;
+        }
+
         fs::path relativePath =
             fs::relative(entry.path(), newPath);
 
-        fs::path destinationPath =
-            commitPath / relativePath;
+        string path =
+            relativePath.string();
 
-        if(entry.is_directory()){
+        string hash =
+            storeObject(entry.path());
 
-            fs::create_directories(destinationPath);
+        bool found = false;
 
+        for(auto& file : files){
+
+            if(file.first == path){
+
+                file.second = hash;
+                found = true;
+                break;
+            }
         }
-        else if(entry.is_regular_file()){
 
-            fs::create_directories(
-                destinationPath.parent_path()
-            );
-
-            fs::copy_file(
-                entry.path(),
-                destinationPath,
-                fs::copy_options::overwrite_existing
-            );
+        if(!found){
+            files.push_back({path, hash});
         }
     }
 }
 
 
-    // 9. Clear staging area
+// Write manifest
+
+ofstream manifest(manifestPath);
+
+for(const auto& file : files){
+
+    manifest
+        << file.first
+        << "|"
+        << file.second
+        << '\n';
+}
+
+manifest.close();
+    
+    // 8. Clear staging area
     fs::remove_all(".mygit/staging");
 
 
-    // 10. Write commit to log
+    // 9. Write commit to log
     ofstream LogFile(".mygit/log.txt", ios::app);
 
     LogFile
@@ -185,7 +218,7 @@ if(fs::exists(newPath)){
         <<commitName<<'\n';
 
 
-    // 11. Update HEAD LAST
+    // 10. Update HEAD LAST
     ofstream headFileout(".mygit/HEAD");
 
     headFileout << newCommit.getId();

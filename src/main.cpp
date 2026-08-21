@@ -5,6 +5,7 @@
 #include "revert.h"
 #include "log.h"
 #include "staging.h"
+#include "object.h"
 
 
 using namespace std;
