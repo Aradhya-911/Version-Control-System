@@ -38,7 +38,7 @@ void add(string path){
     fs::path manifestPath =
         fs::path(".mygit/commits") /
         parentHash /
-        "manifest.txt";
+        "manifest.txt"; //path of the parent commit's manifest file
 
     if(fs::exists(manifestPath)){
 
@@ -66,7 +66,7 @@ void add(string path){
 
             fs::path currentFile =
                 fs::path(".") / relativePath;
-
+            // Check if the file exists in the working directory and if not, add it to the deletions file
             if(!fs::exists(currentFile)){
 
                 fs::create_directories(

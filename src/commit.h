@@ -10,6 +10,7 @@ using namespace std;
 #include<vector>
 #include"hashing.h"
 #include"object.h"
+#include<unordered_map>
 
 void commit(){
 
@@ -76,7 +77,7 @@ void commit(){
 fs::path manifestPath =
     commitPath / "manifest.txt";
 
-vector<pair<string,string>> files;
+unordered_map<string,string> files;
 
 if(newCommit.getParentId() != "-1"){
 
@@ -104,7 +105,7 @@ if(newCommit.getParentId() != "-1"){
             line.substr(pos + 1);
 
         if(hash != "DELETED"){
-            files.push_back({path, hash});
+            files[path] = hash;
         }
     }
 
@@ -130,22 +131,10 @@ if(fs::exists(deletionFile)){
 
     while(getline(deletions, path)){
 
-        for(auto it = files.begin();
-            it != files.end(); ){
+        string deletedPath =
+        fs::path(path).generic_string();
 
-            string filePath =
-                fs::path(it->first).generic_string();
-
-            string deletedPath =
-                fs::path(path).generic_string();
-
-            if(filePath == deletedPath){
-                it = files.erase(it);
-            }
-            else{
-                ++it;
-            }
-        }
+        files.erase(deletedPath);
     }
 
     deletions.close();
@@ -172,21 +161,7 @@ if(fs::exists(newPath)){
         string hash =
             storeObject(entry.path());
 
-        bool found = false;
-
-        for(auto& file : files){
-
-            if(file.first == path){
-
-                file.second = hash;
-                found = true;
-                break;
-            }
-        }
-
-        if(!found){
-            files.push_back({path, hash});
-        }
+        files[path] = hash;
     }
 }
 
