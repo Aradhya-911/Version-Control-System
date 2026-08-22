@@ -20,10 +20,10 @@ void add(string path){
 
     //Setup staging area paths
     fs::path stagingPath = ".mygit/staging";
-    fs::path newPath = stagingPath / "newlystaged";
+    fs::path stagedFile = stagingPath / "files";
     fs::path deletionFile = stagingPath / "deletions";
 
-    fs::create_directories(newPath);
+    fs::create_directories(stagingPath);
 
     string parentHash;
 
@@ -124,18 +124,11 @@ void add(string path){
         string relativePath =
         fs::relative(source, ".").generic_string();
 
-        fs::path destination =
-        newPath / fs::path(relativePath);
+        ofstream staged(stagedFile, ios::app);
 
-        fs::create_directories(
-            destination.parent_path()
-        );
+        staged << relativePath << '\n';
 
-        fs::copy_file(
-            source,
-            destination,
-            fs::copy_options::overwrite_existing
-        );
+        staged.close();
 
         cout<<"Added "<<path<<" to staging area.\n";
         return;
@@ -169,18 +162,11 @@ void add(string path){
             string relativePath =
             fs::relative(current, ".").generic_string();
 
-            fs::path destination =
-            newPath / fs::path(relativePath);
+            ofstream staged(stagedFile, ios::app);
 
-            fs::create_directories(
-                destination.parent_path()
-            );
+            staged << relativePath << '\n';
 
-            fs::copy_file(
-                current,
-                destination,
-                fs::copy_options::overwrite_existing
-            );
+            staged.close();
         }
 
         ++it;

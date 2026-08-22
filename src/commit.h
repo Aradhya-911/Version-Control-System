@@ -114,8 +114,8 @@ if(newCommit.getParentId() != "-1"){
 
 fs::path stagingPath = ".mygit/staging";
 
-fs::path newPath =
-    stagingPath / "newlystaged";
+fs::path stagedFile =
+    stagingPath / "files";
 
 fs::path deletionFile =
     stagingPath / "deletions";
@@ -143,26 +143,29 @@ if(fs::exists(deletionFile)){
 
 // Add new and modified files
 
-if(fs::exists(newPath)){
+if(fs::exists(stagedFile)){
 
-    for(const auto& entry :
-        fs::recursive_directory_iterator(newPath)){
+    ifstream staged(stagedFile);
 
-        if(!entry.is_regular_file()){
+    string path;
+
+    while(getline(staged, path)){
+
+        fs::path sourcePath =
+            fs::path(".") / path;
+
+        if(!fs::exists(sourcePath) ||
+           !fs::is_regular_file(sourcePath)){
             continue;
         }
 
-        fs::path relativePath =
-            fs::relative(entry.path(), newPath);
-
-        string path =
-            relativePath.generic_string();
-
         string hash =
-            storeObject(entry.path());
+            storeObject(sourcePath);
 
         files[path] = hash;
     }
+
+    staged.close();
 }
 
 
