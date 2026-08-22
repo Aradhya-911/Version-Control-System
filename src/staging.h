@@ -35,64 +35,78 @@ void add(string path){
     
     if(parentHash != "0" && !parentHash.empty()){
 
-        fs::path previousCommit =
-            fs::path(".mygit/commits") / parentHash;
+    fs::path manifestPath =
+        fs::path(".mygit/commits") /
+        parentHash /
+        "manifest.txt";
 
-        if(fs::exists(previousCommit)){
+    if(fs::exists(manifestPath)){
 
-            for(const auto& entry :
-                fs::recursive_directory_iterator(previousCommit)){
+        ifstream previousManifest(manifestPath);
 
-                if(!entry.is_regular_file()){
-                    continue;
+        string line;
+
+        while(getline(previousManifest, line)){
+
+            size_t pos = line.find('|');
+
+            if(pos == string::npos){
+                continue;
+            }
+
+            string relativePath =
+                line.substr(0, pos);
+
+            string hash =
+                line.substr(pos + 1);
+
+            if(hash == "DELETED"){
+                continue;
+            }
+
+            fs::path currentFile =
+                fs::path(".") / relativePath;
+
+            if(!fs::exists(currentFile)){
+
+                fs::create_directories(
+                    deletionFile.parent_path()
+                );
+
+                ifstream check(deletionFile);
+
+                string deletedPath;
+                bool alreadyAdded = false;
+
+                while(getline(check, deletedPath)){
+
+                    if(deletedPath == relativePath){
+                        alreadyAdded = true;
+                        break;
+                    }
                 }
 
-                fs::path relativePath =
-                    fs::relative(entry.path(), previousCommit);
+                check.close();
 
-                if(relativePath.filename() == "mygit.exe"){
-                    continue;
-                }
+                if(!alreadyAdded){
 
-                fs::path currentFile =
-                    fs::path(".") / relativePath;
-
-                if(!fs::exists(currentFile)){
-
-                    fs::create_directories(
-                        deletionFile.parent_path()
+                    ofstream deletionLog(
+                        deletionFile,
+                        ios::app
                     );
 
-                    ifstream check(deletionFile);
-                    string deletedPath;
-                    bool alreadyAdded = false;
+                    deletionLog
+                        << relativePath
+                        << '\n';
 
-                    while(getline(check, deletedPath)){
-                        if(deletedPath == relativePath.string()){
-                            alreadyAdded = true;
-                            break;
-                        }
-                    }
-
-                    check.close();
-
-                    if(!alreadyAdded){
-
-                        ofstream deletionLog(
-                            deletionFile,
-                            ios::app
-                        );
-
-                        deletionLog
-                            << relativePath.string()
-                            << '\n';
-
-                        deletionLog.close();
-                    }
+                    deletionLog.close();
                 }
             }
         }
+
+        previousManifest.close();
     }
+}
     // Now, add the specified file or directory to the staging area
     if(!fs::exists(source)){
 
@@ -107,11 +121,11 @@ void add(string path){
             return;
         }
 
-        fs::path relativePath =
-            fs::relative(source, ".");
+        string relativePath =
+        fs::relative(source, ".").generic_string();
 
         fs::path destination =
-            newPath / relativePath;
+        newPath / fs::path(relativePath);
 
         fs::create_directories(
             destination.parent_path()
@@ -152,11 +166,11 @@ void add(string path){
 
         if(it->is_regular_file()){
 
-            fs::path relativePath =
-                fs::relative(current, ".");
+            string relativePath =
+            fs::relative(current, ".").generic_string();
 
             fs::path destination =
-                newPath / relativePath;
+            newPath / fs::path(relativePath);
 
             fs::create_directories(
                 destination.parent_path()

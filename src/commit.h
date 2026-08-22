@@ -97,8 +97,11 @@ if(newCommit.getParentId() != "-1"){
             continue;
         }
 
-        string path = line.substr(0, pos);
-        string hash = line.substr(pos + 1);
+        string path =
+            fs::path(line.substr(0, pos)).generic_string();
+
+        string hash =
+            line.substr(pos + 1);
 
         if(hash != "DELETED"){
             files.push_back({path, hash});
@@ -130,7 +133,13 @@ if(fs::exists(deletionFile)){
         for(auto it = files.begin();
             it != files.end(); ){
 
-            if(it->first == path){
+            string filePath =
+                fs::path(it->first).generic_string();
+
+            string deletedPath =
+                fs::path(path).generic_string();
+
+            if(filePath == deletedPath){
                 it = files.erase(it);
             }
             else{
@@ -158,7 +167,7 @@ if(fs::exists(newPath)){
             fs::relative(entry.path(), newPath);
 
         string path =
-            relativePath.string();
+            relativePath.generic_string();
 
         string hash =
             storeObject(entry.path());
